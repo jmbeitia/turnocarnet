@@ -18,10 +18,17 @@ const STATE_FILE = process.env.STATE_FILE ?? 'state.json';
 // Status diario a partir de esta hora; ✅ si el turno está a OBJETIVO_DIAS días o menos
 const STATUS_HORA = Number(process.env.STATUS_HORA ?? 9);
 const OBJETIVO_DIAS = Number(process.env.OBJETIVO_DIAS ?? 30);
-// Turno que ya tenés (DD/MM/AAAA): solo se avisa de turnos anteriores a esa fecha
-const MI_TURNO = process.env.MI_TURNO?.split('/').reverse().join('-');
+// Turnos que fuiste tomando, en orden y separados por coma ("DD/MM/AAAA[ HH:MM]").
+// El último es el actual: solo se avisa de turnos anteriores a esa fecha.
+const tomados = (process.env.MI_TURNO ?? '')
+  .split(',')
+  .map((t) => t.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}:\d{2}))?$/))
+  .filter(Boolean)
+  .map(([, d, m, y, hh]) => ({ fecha: `${y}-${m}-${d}`, hora: hh }));
+const MI_TURNO = tomados.at(-1)?.fecha;
 
 const fmt = (iso) => iso.split('-').reverse().join('/');
+const fmtTurno = (t) => fmt(t.fecha) + (t.hora ? ` ${t.hora}` : '');
 
 async function notify(title, msg) {
   if (EVOLUTION_URL) {
@@ -66,6 +73,16 @@ const hoy = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 const hora = new Date().getHours();
 const statusPendiente = hora >= STATUS_HORA && state.statusEnviado !== hoy;
 const dias = (iso) => Math.round((Date.parse(iso) - Date.parse(hoy)) / 864e5);
+// "Tu turno: ..." más lo adelantado desde el primero que tomaste
+const resumenMiTurno = () => {
+  if (!MI_TURNO) return '';
+  let r = `Tu turno: ${fmtTurno(tomados.at(-1))} (en ${dias(MI_TURNO)} días)`;
+  if (tomados.length > 1) {
+    const ganados = dias(tomados[0].fecha) - dias(MI_TURNO);
+    r += `\nAdelantaste ${ganados} días: ${tomados.map(fmtTurno).join(' → ')}`;
+  }
+  return r;
+};
 const describir = (s) => `${s.sede}: ${fmt(s.fecha)} (en ${dias(s.fecha)} días)${dias(s.fecha) <= OBJETIVO_DIAS ? ' ✅' : ''}`;
 
 const browser = await chromium.launch({ headless: !process.argv.includes('--headed') });
@@ -102,7 +119,7 @@ try {
   }
   if (state.error) await notify('Volvió a funcionar', describir(mejor));
   if (statusPendiente) {
-    const miTurno = MI_TURNO ? `Tu turno: ${fmt(MI_TURNO)} (en ${dias(MI_TURNO)} días)\n\n` : '';
+    const miTurno = MI_TURNO ? `${resumenMiTurno()}\n\n` : '';
     await notify('Status diario', miTurno + sedes.map(describir).join('\n'));
     state.statusEnviado = hoy;
   }

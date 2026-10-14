@@ -6,12 +6,16 @@ Rosario leyendo el selector "Lugar de atención", y avisa por WhatsApp (Evolutio
 - **Turno más temprano:** cuando la fecha más próxima es anterior a la de la lectura anterior
   y a tu turno actual (`MI_TURNO`).
 - **Status diario:** a las 9 (`STATUS_HORA`), con todas las sedes y los días que faltan;
-  ✅ marca los turnos a 30 días o menos (`OBJETIVO_DIAS`).
+  ✅ marca los turnos a 30 días o menos (`OBJETIVO_DIAS`). Incluye cuántos días adelantaste
+  desde el primer turno que tomaste.
 - **Errores:** una sola vez hasta que vuelve a funcionar.
 
 ## Configuración
 
 `cp .env.example .env` y completar. Sin `EVOLUTION_URL` avisa con notificación de macOS.
+
+`MI_TURNO` es el registro de los turnos que fuiste tomando: cada vez que agarrás uno mejor,
+agregalo al final (ej. `25/11/2026, 04/11/2026 08:15`). El último es el actual.
 
 ## Local
 
