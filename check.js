@@ -1,6 +1,6 @@
 // Inicia sesión con CUIT/contraseña de .env, lee el primer turno libre de cada sede
-// y avisa si aparece una fecha más temprana que la mejor vista: por WhatsApp vía Evolution API
-// si EVOLUTION_URL está definido, si no con una notificación de macOS.
+// y avisa si la fecha más próxima es anterior a la de la última lectura, más un status diario.
+// Avisa por WhatsApp vía Evolution API si EVOLUTION_URL está definido, si no con notificación de macOS.
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -13,6 +13,10 @@ const TURNOS_URL = 'https://www.rosario.gob.ar/inicio/perfildigital/licenciacond
 const AGENDA_URL = 'https://www.rosario.gob.ar/inicio/perfildigital/licenciaconducir/preparar-agenda';
 
 const STATE_FILE = process.env.STATE_FILE ?? 'state.json';
+
+// Status diario a partir de esta hora; ✅ si el turno está a OBJETIVO_DIAS días o menos
+const STATUS_HORA = Number(process.env.STATUS_HORA ?? 9);
+const OBJETIVO_DIAS = Number(process.env.OBJETIVO_DIAS ?? 30);
 
 const fmt = (iso) => iso.split('-').reverse().join('/');
 
@@ -49,6 +53,17 @@ async function login(page) {
     });
 }
 
+const raw = fs.existsSync(STATE_FILE) ? fs.readFileSync(STATE_FILE, 'utf8').trim() : '';
+const state = raw ? JSON.parse(raw) : {};
+const saveState = () => fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+
+// Fecha y hora locales (TZ=America/Argentina/Buenos_Aires en el contenedor)
+const hoy = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+const hora = new Date().getHours();
+const statusPendiente = hora >= STATUS_HORA && state.statusEnviado !== hoy;
+const dias = (iso) => Math.round((Date.parse(iso) - Date.parse(hoy)) / 864e5);
+const describir = (s) => `${s.sede}: ${fmt(s.fecha)} (en ${dias(s.fecha)} días)${dias(s.fecha) <= OBJETIVO_DIAS ? ' ✅' : ''}`;
+
 const browser = await chromium.launch({ headless: !process.argv.includes('--headed') });
 const page = await browser.newPage();
 try {
@@ -73,20 +88,29 @@ try {
   if (!sedes.length) throw new Error('No se encontraron sedes con turnos en el selector');
 
   const mejor = sedes[0];
-  const raw = fs.existsSync(STATE_FILE) ? fs.readFileSync(STATE_FILE, 'utf8').trim() : '';
-  const state = raw ? JSON.parse(raw) : {};
-  const linea = sedes.map((s) => `${s.sede}: ${fmt(s.fecha)}`).join(' | ');
-  console.log(`${new Date().toLocaleString('es-AR')}  ${linea}`);
+  const anterior = state.ultimo?.sedes?.[0];
+  console.log(`${new Date().toLocaleString('es-AR')}  ${sedes.map((s) => `${s.sede}: ${fmt(s.fecha)}`).join(' | ')}`);
 
-  if (!state.mejor || mejor.fecha < state.mejor.fecha) {
-    if (state.mejor) await notify(`¡Turno más temprano! ${mejor.sede}: ${fmt(mejor.fecha)}`, `Antes: ${fmt(state.mejor.fecha)}`);
-    state.mejor = mejor;
+  if (anterior && mejor.fecha < anterior.fecha) {
+    await notify('¡Turno más temprano!', `${describir(mejor)}\nÚltima lectura: ${fmt(anterior.fecha)} (${anterior.sede})`);
   }
+  if (state.error) await notify('Volvió a funcionar', describir(mejor));
+  if (statusPendiente) {
+    await notify('Status diario', sedes.map(describir).join('\n'));
+    state.statusEnviado = hoy;
+  }
+  delete state.error;
   state.ultimo = { cuando: new Date().toISOString(), sedes };
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+  saveState();
 } catch (e) {
-  await notify('Error chequeando turnos', e.message.slice(0, 200));
-  throw e;
+  console.error(`${new Date().toLocaleString('es-AR')}  ${e.message}`);
+  // Avisar el error una sola vez hasta que vuelva a funcionar; el status diario sigue saliendo
+  if (!state.error) await notify('Error chequeando turnos', e.message.slice(0, 200));
+  else if (statusPendiente) await notify('Status diario', `Sigue fallando desde ${state.error.desde}: ${state.error.msg}`);
+  if (statusPendiente) state.statusEnviado = hoy;
+  state.error ??= { desde: new Date().toLocaleString('es-AR'), msg: e.message.slice(0, 200) };
+  saveState();
+  process.exitCode = 1;
 } finally {
   await browser.close();
 }
