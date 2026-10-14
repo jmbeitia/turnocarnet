@@ -8,7 +8,7 @@ COPY check.js ./
 # /app/data conviene montarlo como volumen para que state.json sobreviva a los redeploys.
 ENV TZ=America/Argentina/Buenos_Aires \
     STATE_FILE=/app/data/state.json \
-    INTERVALO_SEG=900
+    INTERVALO_SEG=180
 RUN mkdir -p /app/data
 # Chequea cada INTERVALO_SEG; si falla una corrida, sigue con la próxima
 CMD ["sh", "-c", "while true; do node check.js; sleep \"$INTERVALO_SEG\"; done"]

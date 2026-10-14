@@ -1,6 +1,6 @@
 # turnocarnet
 
-Revisa cada 15 minutos el primer turno libre para la licencia de conducir (examen psicofísico) en
+Revisa cada 3 minutos el primer turno libre para la licencia de conducir (examen psicofísico) en
 Rosario leyendo el selector "Lugar de atención", y avisa por WhatsApp (Evolution API):
 
 - **Turno más temprano:** cuando la fecha más próxima es anterior a la de la lectura anterior
@@ -24,7 +24,7 @@ node check.js            # --headed para ver el navegador
 
 App desde el repo de GitHub con build por Dockerfile. Cargar las variables de `.env.example`
 en Environment y agregar un volumen montado en `/app/data` (ahí queda `state.json`).
-`INTERVALO_SEG` (default 900) cambia la frecuencia.
+`INTERVALO_SEG` (default 180) cambia la frecuencia.
 
 ## VPS (docker compose)
 
