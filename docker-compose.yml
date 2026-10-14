@@ -8,5 +8,5 @@ services:
     environment:
       - STATE_FILE=data/state.json
       - TZ=America/Argentina/Buenos_Aires
-    # Chequea cada hora; si falla una corrida, sigue con la próxima
-    command: sh -c "while true; do node check.js; sleep 3600; done"
+    # Chequea cada 15 minutos; si falla una corrida, sigue con la próxima
+    command: sh -c "while true; do node check.js; sleep 900; done"

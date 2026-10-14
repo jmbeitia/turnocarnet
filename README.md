@@ -1,6 +1,6 @@
 # turnocarnet
 
-Revisa cada hora el primer turno libre para la licencia de conducir (examen psicofísico) en
+Revisa cada 15 minutos el primer turno libre para la licencia de conducir (examen psicofísico) en
 Rosario leyendo el selector "Lugar de atención", y avisa por WhatsApp (Evolution API):
 
 - **Turno más temprano:** cuando la fecha más próxima es anterior a la de la lectura anterior
