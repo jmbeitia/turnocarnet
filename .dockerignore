@@ -1,0 +1,6 @@
+node_modules
+.env
+last.html
+state.json
+data
+.git
