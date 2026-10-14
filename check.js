@@ -17,6 +17,8 @@ const STATE_FILE = process.env.STATE_FILE ?? 'state.json';
 // Status diario a partir de esta hora; ✅ si el turno está a OBJETIVO_DIAS días o menos
 const STATUS_HORA = Number(process.env.STATUS_HORA ?? 9);
 const OBJETIVO_DIAS = Number(process.env.OBJETIVO_DIAS ?? 30);
+// Turno que ya tenés (DD/MM/AAAA): solo se avisa de turnos anteriores a esa fecha
+const MI_TURNO = process.env.MI_TURNO?.split('/').reverse().join('-');
 
 const fmt = (iso) => iso.split('-').reverse().join('/');
 
@@ -91,12 +93,15 @@ try {
   const anterior = state.ultimo?.sedes?.[0];
   console.log(`${new Date().toLocaleString('es-AR')}  ${sedes.map((s) => `${s.sede}: ${fmt(s.fecha)}`).join(' | ')}`);
 
-  if (anterior && mejor.fecha < anterior.fecha) {
-    await notify('¡Turno más temprano!', `${describir(mejor)}\nÚltima lectura: ${fmt(anterior.fecha)} (${anterior.sede})`);
+  const sirve = !MI_TURNO || mejor.fecha < MI_TURNO;
+  if (anterior && mejor.fecha < anterior.fecha && sirve) {
+    const vsMiTurno = MI_TURNO ? `\nTu turno: ${fmt(MI_TURNO)} (${dias(MI_TURNO) - dias(mejor.fecha)} días antes)` : '';
+    await notify('¡Turno más temprano!', `${describir(mejor)}${vsMiTurno}\nÚltima lectura: ${fmt(anterior.fecha)} (${anterior.sede})`);
   }
   if (state.error) await notify('Volvió a funcionar', describir(mejor));
   if (statusPendiente) {
-    await notify('Status diario', sedes.map(describir).join('\n'));
+    const miTurno = MI_TURNO ? `Tu turno: ${fmt(MI_TURNO)} (en ${dias(MI_TURNO)} días)\n\n` : '';
+    await notify('Status diario', miTurno + sedes.map(describir).join('\n'));
     state.statusEnviado = hoy;
   }
   delete state.error;

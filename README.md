@@ -3,7 +3,8 @@
 Revisa cada hora el primer turno libre para la licencia de conducir (examen psicofísico) en
 Rosario leyendo el selector "Lugar de atención", y avisa por WhatsApp (Evolution API):
 
-- **Turno más temprano:** cuando la fecha más próxima es anterior a la de la lectura anterior.
+- **Turno más temprano:** cuando la fecha más próxima es anterior a la de la lectura anterior
+  y a tu turno actual (`MI_TURNO`).
 - **Status diario:** a las 9 (`STATUS_HORA`), con todas las sedes y los días que faltan;
   ✅ marca los turnos a 30 días o menos (`OBJETIVO_DIAS`).
 - **Errores:** una sola vez hasta que vuelve a funcionar.
