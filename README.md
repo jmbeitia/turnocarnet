@@ -8,6 +8,10 @@ Rosario leyendo el selector "Lugar de atención", y avisa por WhatsApp (Evolutio
 - **Status diario:** a las 9 (`STATUS_HORA`), con todas las sedes y los días que faltan;
   ✅ marca los turnos a 30 días o menos (`OBJETIVO_DIAS`). Incluye cuántos días adelantaste
   desde el primer turno que tomaste.
+- **Auto-agendado** (`AUTO_AGENDAR=si`): si hay un turno anterior al tuyo, elige esa sede, la
+  primera fecha y la primera hora y aprieta "Agendar turno", que **reemplaza** tu turno actual.
+  Avisa qué agendó (o que no pudo) y lo suma al historial en `state.json`. Con `simular` hace
+  todo menos apretar el botón, para probarlo sin riesgo.
 - **Errores:** una sola vez hasta que vuelve a funcionar.
 
 ## Configuración
