@@ -72,7 +72,9 @@ async function elegir(page, campo, valor) {
 // que reemplaza el turno actual. Devuelve el turno elegido y lo que dijo la página.
 async function agendar(page, sede) {
   const fechas = await elegir(page, 'lugar', sede.value);
-  const fecha = fechas[0].value; // YYYY-MM-DD
+  // Nunca para hoy ni días pasados: el primero a partir de mañana
+  const fecha = fechas.map((f) => f.value).find((f) => f > hoy); // YYYY-MM-DD
+  if (!fecha) throw new Error(`${sede.sede} no tiene fechas a partir de mañana`);
   if (MI_TURNO && fecha >= MI_TURNO) throw new Error(`${sede.sede} ofrece ${fmt(fecha)}, no es anterior a tu turno`);
   const horas = await elegir(page, 'fecha', fecha);
   await page.selectOption(SEL.hora, horas[0].value);
@@ -109,6 +111,8 @@ async function login(page) {
 
 // Fecha y hora locales (TZ=America/Argentina/Buenos_Aires en el contenedor)
 const hoy = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+// 14/10/2026, 17:41:53 (es-AR solo, en 12 horas, sale 05:41:53 sin a. m./p. m.)
+const ahora = () => new Date().toLocaleString('es-AR', { hourCycle: 'h23' });
 const hora = new Date().getHours();
 const statusPendiente = hora >= STATUS_HORA && state.statusEnviado !== hoy;
 const dias = (iso) => Math.round((Date.parse(iso) - Date.parse(hoy)) / 864e5);
@@ -148,11 +152,12 @@ try {
     .sort((a, b) => a.fecha.localeCompare(b.fecha));
   if (!sedes.length) throw new Error('No se encontraron sedes con turnos en el selector');
 
-  const mejor = sedes[0];
+  // Un turno para hoy (o pasado) no sirve: se toma la primera sede con turnos desde mañana
+  const mejor = sedes.find((s) => s.fecha > hoy) ?? sedes[0];
   const anterior = state.ultimo?.sedes?.[0];
-  console.log(`${new Date().toLocaleString('es-AR')}  ${sedes.map((s) => `${s.sede}: ${fmt(s.fecha)}`).join(' | ')}`);
+  console.log(`${ahora()}  ${sedes.map((s) => `${s.sede}: ${fmt(s.fecha)}`).join(' | ')}`);
 
-  const sirve = !MI_TURNO || mejor.fecha < MI_TURNO;
+  const sirve = mejor.fecha > hoy && (!MI_TURNO || mejor.fecha < MI_TURNO);
   if (anterior && mejor.fecha < anterior.fecha && sirve) {
     const vsMiTurno = MI_TURNO ? `\nTu turno: ${fmt(MI_TURNO)} (${dias(MI_TURNO) - dias(mejor.fecha)} días antes)` : '';
     await notify('¡Turno más temprano!', `${describir(mejor)}${vsMiTurno}\nÚltima lectura: ${fmt(anterior.fecha)} (${anterior.sede})`);
@@ -189,12 +194,12 @@ try {
   state.ultimo = { cuando: new Date().toISOString(), sedes };
   saveState();
 } catch (e) {
-  console.error(`${new Date().toLocaleString('es-AR')}  ${e.message}`);
+  console.error(`${ahora()}  ${e.message}`);
   // Avisar el error una sola vez hasta que vuelva a funcionar; el status diario sigue saliendo
   if (!state.error) await notify('Error chequeando turnos', e.message.slice(0, 200));
   else if (statusPendiente) await notify('Status diario', `Sigue fallando desde ${state.error.desde}: ${state.error.msg}`);
   if (statusPendiente) state.statusEnviado = hoy;
-  state.error ??= { desde: new Date().toLocaleString('es-AR'), msg: e.message.slice(0, 200) };
+  state.error ??= { desde: ahora(), msg: e.message.slice(0, 200) };
   saveState();
   process.exitCode = 1;
 } finally {
