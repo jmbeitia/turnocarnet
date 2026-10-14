@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 process.chdir(import.meta.dirname); // para cron: .env y state.json junto al script
-process.loadEnvFile('.env');
+// En Easypanel las variables vienen del entorno y no hay .env
+if (fs.existsSync('.env')) process.loadEnvFile('.env');
 const { CUIT, PASSWORD, EVOLUTION_URL, EVOLUTION_INSTANCE, EVOLUTION_APIKEY, WHATSAPP_TO } = process.env;
 const TURNOS_URL = 'https://www.rosario.gob.ar/inicio/perfildigital/licenciaconducir/turnos';
 // Redirige a /turnos; es el paso que hace el sitio al tocar "Agendar turno"
@@ -32,6 +33,7 @@ async function notify(title, msg) {
     if (!res.ok) console.error(`Evolution respondió ${res.status}: ${await res.text()}`);
     return;
   }
+  if (process.platform !== 'darwin') return console.log(`[aviso] ${title}: ${msg}`);
   execFileSync('osascript', [
     '-e', 'on run argv',
     '-e', 'display notification (item 2 of argv) with title "Turno carnet" subtitle (item 1 of argv) sound name "Glass"',

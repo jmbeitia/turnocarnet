@@ -20,6 +20,12 @@ npm ci && npx playwright install chromium
 node check.js            # --headed para ver el navegador
 ```
 
+## Easypanel
+
+App desde el repo de GitHub con build por Dockerfile. Cargar las variables de `.env.example`
+en Environment y agregar un volumen montado en `/app/data` (ahí queda `state.json`).
+`INTERVALO_SEG` (default 900) cambia la frecuencia.
+
 ## VPS (docker compose)
 
 ```sh
